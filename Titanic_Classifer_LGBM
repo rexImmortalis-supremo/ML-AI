@@ -1,0 +1,315 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "02169cee",
+   "metadata": {
+    "_cell_guid": "b1076dfc-b9ad-4769-8c92-a6c4dae69d19",
+    "_uuid": "8f2839f25d086af736a60e9eeb907d3b93b6e0e5",
+    "execution": {
+     "iopub.execute_input": "2026-08-10T23:15:02.397709Z",
+     "iopub.status.busy": "2026-08-10T23:15:02.396919Z",
+     "iopub.status.idle": "2026-08-10T23:15:06.079861Z",
+     "shell.execute_reply": "2026-08-10T23:15:06.078874Z"
+    },
+    "papermill": {
+     "duration": 3.690303,
+     "end_time": "2026-08-10T23:15:06.082401+00:00",
+     "exception": false,
+     "start_time": "2026-08-10T23:15:02.392098+00:00",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "import os\n",
+    "import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "\n",
+    "train=pd.read_csv('/kaggle/input/competitions/titanic/train.csv', header=0)\n",
+    "test=pd.read_csv('/kaggle/input/competitions/titanic/test.csv', header=0)\n",
+    "gender_submission=pd.read_csv('/kaggle/input/competitions/titanic/gender_submission.csv', header=0)\n",
+    "target=train['Survived']"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "01cfbc65",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-08-10T23:15:06.088900Z",
+     "iopub.status.busy": "2026-08-10T23:15:06.088503Z",
+     "iopub.status.idle": "2026-08-10T23:15:06.096305Z",
+     "shell.execute_reply": "2026-08-10T23:15:06.095237Z"
+    },
+    "papermill": {
+     "duration": 0.013615,
+     "end_time": "2026-08-10T23:15:06.098465+00:00",
+     "exception": false,
+     "start_time": "2026-08-10T23:15:06.084850+00:00",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def transform(train):\n",
+    "    train['Age']=train['Age'].fillna(train['Age'].median())\n",
+    "    train['Age']=train['Age'].astype(float)\n",
+    "\n",
+    "    train['Embarked']=train['Embarked'].fillna('Q')\n",
+    "\n",
+    "    train['FareNormalized']=np.log1p(train['Fare'])\n",
+    "\n",
+    "    train['FamilySize']=train['SibSp']+train['Parch']+1\n",
+    "    train['IsAlone']=(train['FamilySize']==1)\n",
+    "\n",
+    "    train['IsAlone']=train['IsAlone'].astype(int)\n",
+    "\n",
+    "    sexDict={'male': 0, 'female': 1}\n",
+    "    train['Sex']=train['Sex'].map(sexDict)\n",
+    "\n",
+    "    embDict={'S': 0, 'C': 1, 'Q': 2}\n",
+    "    train['Embarked']=train['Embarked'].map(embDict)\n",
+    "\n",
+    "    colList=['Pclass', 'Sex', 'Age', 'FareNormalized', 'FamilySize', 'IsAlone', 'Embarked']\n",
+    "    train=train[colList]\n",
+    "\n",
+    "    return train"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "474486c5",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-08-10T23:15:06.104478Z",
+     "iopub.status.busy": "2026-08-10T23:15:06.104124Z",
+     "iopub.status.idle": "2026-08-10T23:15:06.124770Z",
+     "shell.execute_reply": "2026-08-10T23:15:06.123840Z"
+    },
+    "papermill": {
+     "duration": 0.026258,
+     "end_time": "2026-08-10T23:15:06.126959+00:00",
+     "exception": false,
+     "start_time": "2026-08-10T23:15:06.100701+00:00",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "df=transform(train)\n",
+    "df_test=transform(test)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "9a38c6bb",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-08-10T23:15:06.133100Z",
+     "iopub.status.busy": "2026-08-10T23:15:06.132780Z",
+     "iopub.status.idle": "2026-08-10T23:15:10.590341Z",
+     "shell.execute_reply": "2026-08-10T23:15:10.589284Z"
+    },
+    "papermill": {
+     "duration": 4.463239,
+     "end_time": "2026-08-10T23:15:10.592545+00:00",
+     "exception": false,
+     "start_time": "2026-08-10T23:15:06.129306+00:00",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "import lightgbm as lgb\n",
+    "from sklearn.metrics import accuracy_score\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "\n",
+    "X_train, X_test, Y_train, Y_test=train_test_split(df, target, test_size=0.2, stratify=target)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "035c3f87",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-08-10T23:15:10.598561Z",
+     "iopub.status.busy": "2026-08-10T23:15:10.598183Z",
+     "iopub.status.idle": "2026-08-10T23:15:10.603977Z",
+     "shell.execute_reply": "2026-08-10T23:15:10.603143Z"
+    },
+    "papermill": {
+     "duration": 0.011063,
+     "end_time": "2026-08-10T23:15:10.605800+00:00",
+     "exception": false,
+     "start_time": "2026-08-10T23:15:10.594737+00:00",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def modelSelection(X_train, Y_train, X_test, Y_test):\n",
+    "\n",
+    "    model=lgb.LGBMClassifier(\n",
+    "        boosting_type='gbdt', n_estimators=15, \\\n",
+    "        learning_rate=0.05, num_leaves=31, verbose=-1\n",
+    "    )\n",
+    "    \n",
+    "    model.fit(X_train, Y_train)\n",
+    "    Y_pred=model.predict(X_test)\n",
+    "    acc=accuracy_score(Y_pred, Y_test)\n",
+    "    return model, acc"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "9eadc16e",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-08-10T23:15:10.612093Z",
+     "iopub.status.busy": "2026-08-10T23:15:10.611365Z",
+     "iopub.status.idle": "2026-08-10T23:15:10.684710Z",
+     "shell.execute_reply": "2026-08-10T23:15:10.683615Z"
+    },
+    "papermill": {
+     "duration": 0.078918,
+     "end_time": "2026-08-10T23:15:10.686907+00:00",
+     "exception": false,
+     "start_time": "2026-08-10T23:15:10.607989+00:00",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "model, acc=modelSelection(X_train, Y_train, X_test, Y_test)\n",
+    "predictions=model.predict(df_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "ade167f7",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-08-10T23:15:10.693005Z",
+     "iopub.status.busy": "2026-08-10T23:15:10.692671Z",
+     "iopub.status.idle": "2026-08-10T23:15:10.698020Z",
+     "shell.execute_reply": "2026-08-10T23:15:10.697027Z"
+    },
+    "papermill": {
+     "duration": 0.01097,
+     "end_time": "2026-08-10T23:15:10.700131+00:00",
+     "exception": false,
+     "start_time": "2026-08-10T23:15:10.689161+00:00",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "ans=pd.DataFrame({\n",
+    "    'PassengerId': test['PassengerId'],\n",
+    "    'Survived': predictions\n",
+    "})"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "eedac28b",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2026-08-10T23:15:10.706068Z",
+     "iopub.status.busy": "2026-08-10T23:15:10.705711Z",
+     "iopub.status.idle": "2026-08-10T23:15:10.718292Z",
+     "shell.execute_reply": "2026-08-10T23:15:10.717258Z"
+    },
+    "papermill": {
+     "duration": 0.018185,
+     "end_time": "2026-08-10T23:15:10.720555+00:00",
+     "exception": false,
+     "start_time": "2026-08-10T23:15:10.702370+00:00",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "ans.to_csv('/kaggle/working/Submission_ship.csv', index=False)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "f7b4e727",
+   "metadata": {
+    "papermill": {
+     "duration": 0.002069,
+     "end_time": "2026-08-10T23:15:10.724798+00:00",
+     "exception": false,
+     "start_time": "2026-08-10T23:15:10.722729+00:00",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kaggle": {
+   "accelerator": "none",
+   "dataSources": [],
+   "dockerImageVersionId": 28755,
+   "isGpuEnabled": false,
+   "isInternetEnabled": false,
+   "language": "python",
+   "sourceType": "notebook"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.12.13"
+  },
+  "papermill": {
+   "default_parameters": {},
+   "duration": 12.741133,
+   "end_time": "2026-08-10T23:15:11.548424+00:00",
+   "environment_variables": {},
+   "exception": null,
+   "input_path": "__notebook__.ipynb",
+   "output_path": "__notebook__.ipynb",
+   "parameters": {},
+   "start_time": "2026-08-10T23:14:58.807291+00:00",
+   "version": "2.7.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
